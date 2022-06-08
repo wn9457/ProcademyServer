@@ -5,14 +5,11 @@
 #define ____TLS_LOCKFREE_FREELIST_H____
 
 #include "LockFreeStack.h"
+#include "SListFreeList.h"
 
-#define CHUNK_SIZE 500	//50000개로하면 서버 버벅댐 
+#define CHUNK_SIZE 500	//
 
 extern LONG64 g_Config;
-
-/*
-https://copynull.tistory.com/119
-*/
 
 template<typename T>
 class CTLS_LockFree_FreeList
@@ -21,10 +18,9 @@ public:
 	struct ChunkNODE;
 	struct ChunkDATA
 	{
-		T Data;  // 1440byte
-		ChunkNODE* pMyChunkNode; //8
-		LONG64 DataConfig;
-		int gbData;
+		T Data;					 // 56
+		ChunkNODE* pMyChunkNode; // 8
+		LONG64 DataConfig;		 // 8
 	};
 
 
@@ -44,20 +40,16 @@ public:
 			for (int i = 0; i < CHUNK_SIZE; ++i)
 			{
 				this->DataArr[i].pMyChunkNode = this;
-				this->DataArr[i].DataConfig = this->Config;
+				//this->DataArr[i].DataConfig = this->Config;
 			}
 		}
 
 	public:
-		LONG64 gbdata[80];
-		volatile alignas(64) SHORT FreeCount;		// 64
-		volatile alignas(64) SHORT AllocCount;		// 64
-		ChunkDATA DataArr[CHUNK_SIZE];      // 1448 * CHUNK_SIZE
-		LONG64 Config;						// 64
-											// 192 + 1448 * CHUNK_SIZE
+		volatile alignas(16) SHORT FreeCount;	//8
+		volatile alignas(16) SHORT AllocCount;	//8
+		ChunkDATA DataArr[CHUNK_SIZE];			//
+		LONG64 Config;							//8
 	};
-	//실제:32128   목표:32768
-	//
 
 
 public:
@@ -65,11 +57,10 @@ public:
 	{
 		// ChunkNode의 생성 및 생성자 여부결정
 		// Config와 this(찾아갈주소)는 한번 박아놓으면 바뀔일 없으므로 false
-		this->_ChunkFreeList = new CLockFree_FreeList<ChunkNODE>(false);
+		// this->_ChunkFreeList = new CLockFree_FreeList<ChunkNODE>(false);
 
 		// <T>자료형 자체에 대한 생성자 호출 여부
 		this->_IsPlacementNew = IsPlacementNew;
-
 		this->TlsIndex = TlsAlloc();
 
 		if (TlsIndex == TLS_OUT_OF_INDEXES)
@@ -78,7 +69,6 @@ public:
 			*a = 0;
 		}
 
-		//다른쪽에서 메모리접근느낌으로 살펴볼것. 더 줄일거 없는지
 		//메모리접근을 높이기위한 할당 - 해제
 		//ChunkNODE* pChunkNode[16];
 		//int size = sizeof(ChunkNODE);
@@ -92,7 +82,6 @@ public:
 
 	virtual ~CTLS_LockFree_FreeList()
 	{
-		delete this->_ChunkFreeList;
 	}
 
 
@@ -112,8 +101,8 @@ public:
 				//T* Data = &pChunkNode->DataArr[pChunkNode->AllocCount--].Data;
 
 				// placment new 생성자호출
-				 if(true == this->_IsPlacementNew)
-					new(&pChunkNode->DataArr[pChunkNode->AllocCount].Data) T;
+				 //if(true == this->_IsPlacementNew)
+					//new(&pChunkNode->DataArr[pChunkNode->AllocCount].Data) T;
 
 				return (T*)(&pChunkNode->DataArr[pChunkNode->AllocCount--].Data);
 			}
@@ -139,24 +128,25 @@ public:
 			// 2. ChunkAlloc 은 할당받는쪽에서 다시 할당해줌
 			//___________________________________________________________________________
 			TlsSetValue(this->TlsIndex, 0);
-			return &(pChunkNode->DataArr[0].Data);
+			return (T*)(&(pChunkNode->DataArr[0].Data));
 		}
 
 		//해당스레드에서 TlsGetValue()가 최초 호출된 경우
 		else if (pChunkNode == nullptr)
 		{
-			pChunkNode = this->_ChunkFreeList->Alloc();
+			//***********이쪽부분 초기화안되고있음..
+			pChunkNode = this->_ChunkFreeList.Alloc();
 
 			pChunkNode->AllocCount = CHUNK_SIZE - 2; //(반환할거 포함 마이너스)
 			pChunkNode->FreeCount = CHUNK_SIZE;
 
 			TlsSetValue(this->TlsIndex, pChunkNode);
 
-			return &(pChunkNode->DataArr[CHUNK_SIZE - 1].Data);
+			return (T*)&(pChunkNode->DataArr[CHUNK_SIZE - 1].Data);
 		}
 		else
 		{
-			int err = 0;
+			int err = 0;	// 강력한 로그
 		}
 
 	}
@@ -164,17 +154,17 @@ public:
 	void Free(T* Data)
 	{
 		// 내 메모리풀에서 나간게 맞는가?
-		if (((ChunkDATA*)Data)->DataConfig != (((ChunkNODE*)((ChunkDATA*)Data)->pMyChunkNode)->Config))
-		{
-			int* Crash = 0;
-			*Crash = 0;
-		}
+		//if (((ChunkDATA*)Data)->DataConfig != (((ChunkNODE*)((ChunkDATA*)Data)->pMyChunkNode)->Config))
+		//{
+		//	int* Crash = 0;
+		//	*Crash = 0;
+		//}
 
 		//청크 Free카운트를 증가시키고, 모두 반납된경우 프리리스트로 반납한다.
 		if (0 == InterlockedDecrement16(&(((ChunkNODE*)((ChunkDATA*)Data)->pMyChunkNode)->FreeCount)))
 		{
-			//프리리스트 반환z
-			this->_ChunkFreeList->Free((ChunkNODE*)((ChunkDATA*)Data)->pMyChunkNode);
+			//프리리스트 반환
+			this->_ChunkFreeList.Free((ChunkNODE*)((ChunkDATA*)Data)->pMyChunkNode);
 		}
 	}
 
@@ -197,22 +187,25 @@ public:
 
 	int GetChunkSize()
 	{
-		return this->_ChunkFreeList->GetUseCount();
+		return this->_ChunkFreeList.GetUseCount();
 	}
 
 
 	void DebugPrint()
 	{
-		wprintf(L"[ %lld / %lld ] ", _ChunkFreeList->GetUseSize(), _ChunkFreeList->GetAllocSize());
+		wprintf(L"[ %lld / %lld ] ", _ChunkFreeList.GetUseSize(), _ChunkFreeList.GetAllocSize());
 	}
 
 public:
-	CLockFree_FreeList<ChunkNODE>* _ChunkFreeList;
+	//CLockFree_FreeList<ChunkNODE> _ChunkFreeList;
+	CSListFreeList<ChunkNODE> _ChunkFreeList;		//데이터 순서가달라서 Free쪽 다시봐야함
+
 
 private:
 	int TlsIndex;
 	bool _IsPlacementNew;		// 데이터 <T>에 대한 생성자 여부결정
 };
+
 
 #endif //____TLS_LOCKFREE_FREELIST_H____
 
