@@ -256,7 +256,6 @@ public:
 	CLockFreeQ<JOB*> _JobQ;
 	std::queue<JOB*> _STLQ;
 
-	
 	HANDLE _IocpQ;
 	CTLS_LockFree_FreeList<JOB> _TlsJobFreeList;
 	CTLS_LockFree_FreeList<CPlayer> _TlsPlayerFreeList;
