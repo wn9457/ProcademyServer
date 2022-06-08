@@ -64,7 +64,7 @@ public:
 	void Clear(void)
 	{
 		//모든 노드 삭제
-		volatile NODE* pfNode = nullptr;
+		NODE* pfNode = nullptr;
 
 		while (this->_phead->pNode->pNextNode != nullptr)
 		{
@@ -90,14 +90,14 @@ public:
 
 	bool Enqueue(T Data)
 	{
-		TopNODE bTopTailNode;						// backup TailTopNode;
-		NODE* pbTailNextNode;				// backupTailNext Node;
-		NODE* pnNode = this->_pFreeList->Alloc();	// NewNode;
+		volatile TopNODE bTopTailNode;						// backup TailTopNode;
+		volatile NODE* pbTailNextNode;						// backupTailNext Node;
+		volatile NODE* pnNode = this->_pFreeList->Alloc();	// NewNode;
 
 		pnNode->Data = Data;
 		pnNode->pNextNode = nullptr;				// Enqueue는 pNext가 nullptr일 경우에만 
 
-		UINT64 lTailUniqueCount = InterlockedIncrement64((LONG64*)&this->_TailUniqueCount);
+		volatile UINT64 lTailUniqueCount = InterlockedIncrement64(&this->_TailUniqueCount);
 
 		// 노드가 추가되면 Enqueue성공간주. tail밀기 실패는 상관X
 		while (true)
@@ -140,8 +140,8 @@ public:
 				if (nullptr == InterlockedCompareExchangePointer
 				(
 					(volatile PVOID*)&bTopTailNode.pNode->pNextNode,
-					pnNode,
-					pbTailNextNode
+					(PVOID)pnNode,
+					(PVOID)pbTailNextNode
 				))
 				{
 					// Enqueue 성공 
@@ -169,11 +169,10 @@ public:
 
 	bool Dequeue(T* pOutData)
 	{
-		int lUseSize = InterlockedDecrement64((LONG64*)&_UseSize);
+		volatile LONG64 lUseSize = InterlockedDecrement64((LONG64*)&_UseSize);
 		if (lUseSize < 0)
 		{
-			int lCurSize = InterlockedIncrement64((LONG64*)&_UseSize);
-
+			volatile LONG64 lCurSize = InterlockedIncrement64((LONG64*)&_UseSize);
 			if (lCurSize <= 0)
 			{
 				pOutData = nullptr;
@@ -181,11 +180,12 @@ public:
 			}
 		}
 
-		LONG64 lHeadUniqueCount = InterlockedIncrement64((LONG64*)&this->_HeadUniqueCount);
-		LONG64 lTailUniqueCount;
+		volatile LONG64 lHeadUniqueCount = InterlockedIncrement64((LONG64*)&this->_HeadUniqueCount);
+		volatile LONG64 lTailUniqueCount;
 
-		TopNODE	 bTopHeadNode;
-		TopNODE	 bTopTailNode;
+		volatile TopNODE bTopHeadNode;
+		volatile TopNODE bTopTailNode;
+
 		volatile NODE* pbTailNextNode;
 		volatile NODE* bHeadNextNode;
 
@@ -265,8 +265,6 @@ public:
 		// CAS128()가 Comp쪽으로 뱉어준 원래노드를 해제
 		this->_pFreeList->Free(bTopHeadNode.pNode);
 
-
-
 		return true;
 	}
 
@@ -284,12 +282,12 @@ public:
 
 private:
 	CLockFree_FreeList<NODE>* _pFreeList;
-	volatile NODE* _pDummy;
+	volatile NODE*	_pDummy;
 	volatile TopNODE* _phead;
 	volatile TopNODE* _ptail;
-	volatile UINT64	_UseSize;
-	volatile UINT64 _HeadUniqueCount;
-	volatile UINT64 _TailUniqueCount;
+	volatile LONG64	_UseSize;
+	volatile LONG64 _HeadUniqueCount;
+	volatile LONG64 _TailUniqueCount;
 };
 
 

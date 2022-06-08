@@ -13,17 +13,16 @@
 template<typename T>
 class CLockFree_FreeList
 {
-
 	struct NODE
 	{
 		T		Data;
 		SHORT	IsMine;
-		NODE* pNextNode;
+		NODE*	pNextNode;
 	};
 
 	struct TopNODE
 	{
-		NODE* pNode;
+		NODE*	pNode;
 		LONG64	UniqueCount;
 	};
 
@@ -40,6 +39,11 @@ public:
 		this->_UniqueCount = 0;
 
 		this->_IsPlacementNew = IsPlacementNew;
+
+		this->hHeap = HeapCreate(NULL, 0, 0);
+		ULONG HeapInformationValue = 2;
+		HeapSetInformation(hHeap, HeapCompatibilityInformation,
+			&HeapInformationValue, sizeof(HeapInformationValue));
 	}
 
 	virtual ~CLockFree_FreeList()
@@ -60,7 +64,7 @@ public:
 	bool Free(volatile T* Data)
 	{
 		// Free Node
-		NODE* fNode = (NODE*)Data;
+		volatile NODE* fNode = (NODE*)Data;
 
 		// 잘못된 주소가 전달된 경우
 		//if (fNode->IsMine != IDENT_VAL)
@@ -69,7 +73,7 @@ public:
 		// 소멸자 호출안됨. 소멸자는 애초에 명시적으로 호출할 수 없다.
 
 		// backup TopNode
-		TopNODE bTopNode;
+		volatile TopNODE bTopNode;
 
 		//_______________________________________________________________________________________
 		// 
@@ -116,7 +120,7 @@ public:
 			bTopNode.pNode = this->_pTopNode->pNode;
 			fNode->pNextNode = bTopNode.pNode;
 
-			NODE* pNode = (NODE*)InterlockedCompareExchangePointer
+			volatile NODE* pNode = (NODE*)InterlockedCompareExchangePointer
 			(
 				(PVOID*)&this->_pTopNode->pNode,
 				(PVOID)fNode,
@@ -137,12 +141,12 @@ public:
 
 	T* Alloc()
 	{
-		LONG64  lUniqueCount;	// New UniqCount
-		UINT64	lUseSize;		// Local UseSize
-		UINT64	lAllocSize = this->_AllocSize;
+		volatile LONG64 lUniqueCount;	// New UniqCount
+		volatile UINT64	lUseSize;		// Local UseSize
+		volatile UINT64	lAllocSize = this->_AllocSize;
 
-		TopNODE bTopNode;		// backup TopNode
-		NODE* rNode = nullptr;// return Node
+		volatile TopNODE bTopNode;		// backup TopNode
+		volatile NODE* rNode = nullptr; // return Node
 
 
 		// UseSize 증가
@@ -186,9 +190,23 @@ public:
 		else
 		{
 			//return Node
-			rNode = new NODE;
-			rNode->IsMine = IDENT_VAL;
-			rNode->pNextNode = nullptr;
+
+			//___________________________________________________________
+			//
+			// 1. new 
+			//rNode = new NODE;
+			
+			// 2. malloc 
+			//rNode = (NODE*)malloc(sizeof(NODE));
+			//new ((T*)&rNode->Data) T;
+
+			// 3. HeapAlloc
+			rNode = (NODE*)HeapAlloc(hHeap, NULL, sizeof(NODE));
+			new ((T*)&rNode->Data) T;
+			//___________________________________________________________
+
+
+			//rNode->IsMine = IDENT_VAL;
 
 			InterlockedIncrement64((LONG64*)&this->_AllocSize);
 		}
@@ -199,7 +217,7 @@ public:
 		//	new (&rNode->Data) T;
 
 		// 데이터 반환 (노드반환)
-		return &(rNode->Data);
+		return (T*)(&(rNode->Data));
 	}
 
 
@@ -211,14 +229,13 @@ public:
 	UINT64 GetUniqueCount() { return _pTopNode->UniqueCount; }
 
 private:
-	volatile TopNODE* _pTopNode;			//_allinge_malloc()
 	bool	_IsPlacementNew;
-
-	volatile UINT64	_UseSize;			//실제 바깥에서 사용되고있는 노드(malloc노드)
-	volatile UINT64 _AllocSize;			//바깥으로 Alloc한 노드사이즈	
+	volatile TopNODE* _pTopNode;		//	_allinge_malloc()
+	volatile UINT64	_UseSize;			//	실제 바깥에서 사용되고있는 노드(malloc노드)
+	volatile UINT64 _AllocSize;			//	바깥으로 Alloc한 노드사이즈	
 	volatile UINT64 _UniqueCount;
+	HANDLE hHeap;
 };
-
 #endif
 
 
