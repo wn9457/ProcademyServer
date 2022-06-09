@@ -166,7 +166,7 @@ private:
 	VOID TPSProc();
 
 public:
-	BOOL DisconnectSession(UINT64 SessionID);	
+	BOOL DisconnectSession(UINT64 SessionID);
 	BOOL SendPacket(UINT64 SessionID, CMsg* msg);
 
 	// 컨텐츠쪽으로 핸들링 할 함수
@@ -205,19 +205,19 @@ private:
 	BOOL		_ZeroCopy;
 
 private:
-	const char* _IP;
+	CONST CHAR* _IP;
 	USHORT		_port;
 	UINT64		_Connectblock;
 
 private: //h
 	HANDLE		_hAcceptThread = INVALID_HANDLE_VALUE;
 	HANDLE		_hMonitorThread = INVALID_HANDLE_VALUE;
-	HANDLE*		_hWorkerthreads = nullptr;
+	HANDLE* _hWorkerthreads = nullptr;
 
 private:
 	SOCKET		_ListenSocket = 0;
 	HANDLE		_IOCP = INVALID_HANDLE_VALUE;
-	_SESSION*	_SessionArray = nullptr;
+	_SESSION* _SessionArray = nullptr;
 	static UINT64 _SessionIdCount;
 
 private:
@@ -228,7 +228,7 @@ public:
 	volatile SHORT _ZeroByteSend = 0;
 	volatile SHORT _FindFail = 0;
 	volatile ERROR_CODE _error_code;
-	
+
 	// Debug Monitor
 	// AcceptTPS, SendTPS, RecvTPS, WorkerThread가 한번깨어나서 얼마나 처리하나
 	// UpdateThread 블락카운트

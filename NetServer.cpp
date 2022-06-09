@@ -141,7 +141,7 @@ UINT WINAPI CNetServer::AcceptThread(LPVOID NetServer)
 
 	pNetServer->_StartTime = timeGetTime();
 
-	for(;;)
+	for (;;)
 	{
 		SOCKADDR_IN addr_in;
 		memset(&addr_in, 0, sizeof(addr_in));
@@ -171,7 +171,7 @@ UINT WINAPI CNetServer::WorkerThread(LPVOID NetServer)
 	// tihs저장
 	CNetServer* pNetServer = (CNetServer*)NetServer;
 
-	for(;;)
+	for (;;)
 	{
 		_SESSION* pSession = NULL;
 		int Transferred = 0;
@@ -197,7 +197,7 @@ UINT WINAPI CNetServer::WorkerThread(LPVOID NetServer)
 			// Recv 종료 - IOCount감소
 			if (0 == InterlockedDecrement64(&pSession->ReleaseCommit.IOCount))
 				pNetServer->ReleaseSession(pSession);
-			
+
 			InterlockedIncrement64((LONG64*)&pNetServer->_RecvCount);
 		}
 
@@ -241,7 +241,7 @@ UINT WINAPI CNetServer::WorkerThread(LPVOID NetServer)
 UINT __stdcall CNetServer::MonitorThread(LPVOID NetServer)
 {
 	CNetServer* pNetServer = (CNetServer*)NetServer;
-	for(;;)
+	for (;;)
 	{
 		Sleep(1999);
 
@@ -291,7 +291,7 @@ UINT __stdcall CNetServer::MonitorThread(LPVOID NetServer)
 		wprintf(L"Chunk  CMsg"); CMsg::_TlsMsgFreeList->DebugPrint();
 		//wprintf(L"[ %lld / %lld ] ", CMsg::_MsgFreeList->GetUseSize(), CMsg::_MsgFreeList->GetAllocSize());
 
-		
+
 		wprintf(L"\n");
 		wprintf(L"------------------------------------------------------------------------------\n");
 
@@ -342,7 +342,7 @@ VOID CNetServer::AcceptComplete(SOCKET Socket, SOCKADDR_IN sockaddr_in, UINT64 I
 	//Recv 로직처리 완료로 인한 Count감소. 0이되는 상황을 방지하기위해 자리재배치
 	if (InterlockedDecrement64(&_SessionArray[Index].ReleaseCommit.IOCount) == 0)
 		ReleaseSession(&_SessionArray[Index]);
- }
+}
 
 VOID CNetServer::SendPost(_SESSION* pSession)
 {
@@ -592,7 +592,6 @@ BOOL CNetServer::FindSession(UINT64 SessionID, _SESSION** ppSession)
 
 /*
 	재할당되면 무조건 알아차릴 수 있는 이유
-
 	FindSession - 못찾으면 이미 해제된것.
 	StartUseSession - 재할당 유무와 상관없이 일단 해제를 막음
 	SessionID 비교 - 재할당 유무 판별이가능.
