@@ -33,7 +33,7 @@ VOID CChattingServer::OnClientJoin(ULONG64 SessionID)
 	job->Type = JOB::TYPE::ON_CLIENT_JOIN;
 	job->SessionID = SessionID;
 	job->msg = nullptr;
-	
+
 	// 1. Iocp-Q
 	PostQueuedCompletionStatus(_IocpQ, NULL, (ULONG_PTR)job, NULL);
 
@@ -56,10 +56,10 @@ VOID CChattingServer::OnClientLeave(ULONG64 SessionID)
 	job->Type = JOB::TYPE::ON_CLIENT_LEAVE;
 	job->SessionID = SessionID;
 	job->msg = nullptr;
-	
+
 	// 1. Iocp-Q
 	PostQueuedCompletionStatus(_IocpQ, NULL, (ULONG_PTR)job, NULL);
-	
+
 	// 2. LockFree-Q
 	//_JobQ.Enqueue(job);
 
@@ -72,7 +72,7 @@ VOID CChattingServer::OnClientLeave(ULONG64 SessionID)
 	// 4. APC-Q
 	//job->pServer = this;
 	//QueueUserAPC(APCProc, _hApcThread, (ULONG_PTR)job);
-	
+
 }
 
 BOOL CChattingServer::OnConnectionRequest(CONST CHAR* IP, USHORT Port)
@@ -97,7 +97,7 @@ VOID CChattingServer::OnRecv(UINT64 SessionID, CMsg* msg, SHORT test)
 
 	// 2. LockFree-Q
 	//_JobQ.Enqueue(job);
-	
+
 	// 3. STL-Q
 	//EnterCriticalSection(&cs);
 	//_STLQ.push(job);
@@ -139,13 +139,13 @@ VOID CChattingServer::OnMonitor(VOID)
 	wprintf(L"LockFree JobQ [%lld] ", this->_JobQ.GetUseSize());
 	wprintf(L"STL JobQ [%lld] ", this->_STLQ.size());
 
-	wprintf(L"\nUpdateTPS : [%lld]\n", UpdateCount / ((timeGetTime() - _StartTime)/1000));
+	wprintf(L"\nUpdateTPS : [%lld]\n", UpdateCount / ((timeGetTime() - _StartTime) / 1000));
 }
 
 UINT __stdcall CChattingServer::UpdateThread(PVOID parg)
 {
 	CChattingServer* pChattingServer = (CChattingServer*)parg;
-	
+
 	JOB* job;
 	while (true)
 	{
@@ -154,7 +154,7 @@ UINT __stdcall CChattingServer::UpdateThread(PVOID parg)
 		WSAOVERLAPPED* pOverLapped = NULL;
 		GetQueuedCompletionStatus(pChattingServer->_IocpQ, (DWORD*)&Transferred, (PULONG_PTR)&job, &pOverLapped, INFINITE);
 
-		
+
 		//while(true)
 		//{
 			//EnterCriticalSection(&pChattingServer->cs);
@@ -169,30 +169,30 @@ UINT __stdcall CChattingServer::UpdateThread(PVOID parg)
 			//pChattingServer->_STLQ.pop();
 
 			//LeaveCriticalSection(&pChattingServer->cs);
-			
+
 			//if (false == pChattingServer->_JobQ.Dequeue(&job))
 			//	continue;
 
-			switch (job->Type)
-			{
-				case JOB::TYPE::ON_CLIENT_JOIN:			pChattingServer->ON_CLIENT_JOIN_FUNC(job);			break;
-				case JOB::TYPE::ON_CLIENT_LEAVE:		pChattingServer->ON_CLIENT_LEAVE_FUNC(job);			break;
-				case JOB::TYPE::ON_CONNECTION_REQUEST:	pChattingServer->ON_CONNECTION_REQUEST_FUNC(job);	break;
-				case JOB::TYPE::ON_RECV:				pChattingServer->ON_RECV_FUNC(job);					break;
-				case JOB::TYPE::ON_SEND:				pChattingServer->ON_SEND_FUNC(job);					break;
-				case JOB::TYPE::ON_WORKERTHREAD_BEGIN:	pChattingServer->ON_WORKERTHREAD_BEGIN_FUNC(job);	break;
-				case JOB::TYPE::ON_WORKERTHREAD_END:	pChattingServer->ON_WORKERTHREAD_END_FUNC(job);		break;
-				case JOB::TYPE::ON_ERROR:				pChattingServer->ON_ERROR_FUNC(job);				break;
-				default:
-				{
-					printf("UpdateThread switch-case default Error : %d\n", job->Type);
-					pChattingServer->DisconnectSession(job->SessionID);
-					++pChattingServer->ErrorCount;
-					break;
-				}
-			}
-			pChattingServer->_TlsJobFreeList.Free(job);
-			++pChattingServer->UpdateCount;
+		switch (job->Type)
+		{
+		case JOB::TYPE::ON_CLIENT_JOIN:			pChattingServer->ON_CLIENT_JOIN_FUNC(job);			break;
+		case JOB::TYPE::ON_CLIENT_LEAVE:		pChattingServer->ON_CLIENT_LEAVE_FUNC(job);			break;
+		case JOB::TYPE::ON_CONNECTION_REQUEST:	pChattingServer->ON_CONNECTION_REQUEST_FUNC(job);	break;
+		case JOB::TYPE::ON_RECV:				pChattingServer->ON_RECV_FUNC(job);					break;
+		case JOB::TYPE::ON_SEND:				pChattingServer->ON_SEND_FUNC(job);					break;
+		case JOB::TYPE::ON_WORKERTHREAD_BEGIN:	pChattingServer->ON_WORKERTHREAD_BEGIN_FUNC(job);	break;
+		case JOB::TYPE::ON_WORKERTHREAD_END:	pChattingServer->ON_WORKERTHREAD_END_FUNC(job);		break;
+		case JOB::TYPE::ON_ERROR:				pChattingServer->ON_ERROR_FUNC(job);				break;
+		default:
+		{
+			printf("UpdateThread switch-case default Error : %d\n", job->Type);
+			pChattingServer->DisconnectSession(job->SessionID);
+			++pChattingServer->ErrorCount;
+			break;
+		}
+		}
+		pChattingServer->_TlsJobFreeList.Free(job);
+		++pChattingServer->UpdateCount;
 		//}
 		//ResetEvent(pChattingServer->_hJobEvent);
 	}
@@ -227,12 +227,12 @@ VOID CChattingServer::ON_CLIENT_LEAVE_FUNC(JOB* job)
 	}
 
 	CPlayer* pPlayer = iter->second;
-	
+
 	// 플레이어를 섹터에서 삭제
 	// 게임에 들어간상태(섹터에 있는상태)면 섹터에서 찾아서 지운다.
 	if (iter->second->SectorJoin == true)
 		_SectorArr[iter->second->SectorX][iter->second->SectorY].SectorMap.erase(iter->second->SessionID);
-	
+
 	// 플레이어 맵에서 삭제.
 	_PlayerMap.erase(iter);
 
@@ -249,7 +249,7 @@ VOID CChattingServer::ON_RECV_FUNC(JOB* job)
 {
 	WORD Type;
 	*(job->msg) >> Type;
-	
+
 	switch (Type)
 	{
 	case MSG_CS_CHAT_SERVER:			MSG_CS_CHAT_SERVER_FUNC(job);			break;
@@ -258,7 +258,7 @@ VOID CChattingServer::ON_RECV_FUNC(JOB* job)
 	case MSG_CS_CHAT_REQ_MESSAGE:		MSG_CS_CHAT_REQ_MESSAGE_FUNC(job);		break;
 	case MSG_CS_CHAT_REQ_HEARTBEAT:		MSG_CS_CHAT_REQ_HEARTBEAT_FUNC(job);	break;
 
-	default: printf("=ON_RECV_FUNC Default : %d\n", Type);  
+	default: printf("=ON_RECV_FUNC Default : %d\n", Type);
 		DisconnectSession(job->SessionID);
 		break;
 	}
@@ -529,13 +529,13 @@ VOID CChattingServer::MSG_CS_CHAT_REQ_MESSAGE_FUNC(JOB* job)
 		ErrorCount++;
 		return;
 	}
-	
+
 	//		WORD	MessageLen
 	//		WCHAR	Message[MessageLen / 2]		// null 미포함
 
 	WORD MessageLen = 0;
 	*(job->msg) >> MessageLen;
-	
+
 	if (MessageLen == 0)
 	{
 		printf("=MoveReq, MessageLen = 0[SessionID : %d]", MessageLen);
@@ -549,10 +549,10 @@ VOID CChattingServer::MSG_CS_CHAT_REQ_MESSAGE_FUNC(JOB* job)
 		DisconnectSession(job->SessionID);
 		return;
 	}
-	
+
 	//WCHAR MessageBuffer[1000];
 	//job->msg->GetData((char*)MessageBuffer, (MessageLen / 2)* sizeof(WCHAR));
-	
+
 	MSG_CS_CHAT_RES_MESSAGE_FUNC(pPlayer, MessageLen, (WCHAR*)job->msg->GetFrontBufferPtr()/*(WCHAR*)MessageBuffer*/);
 }
 
@@ -654,7 +654,7 @@ BOOL CChattingServer::FindPlayer(UINT64 SessionID, CPlayer** ppPlayer)
 {
 	// 로그인한 플레이어를 찾아 정보를 넣음
 	std::unordered_map<ULONG64, CPlayer*>::iterator iter = _PlayerMap.find(SessionID);
-	
+
 	if (iter == _PlayerMap.end())
 	{
 		*ppPlayer = nullptr;
@@ -692,10 +692,9 @@ VOID CChattingServer::APCProc(ULONG_PTR arg)
 		break;
 	}
 	}
-	
+
 	pChattingServer->_TlsJobFreeList.Free(job);
 	++pChattingServer->UpdateCount;
 
 	return void();
 }
-

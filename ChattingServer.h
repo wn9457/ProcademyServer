@@ -221,7 +221,7 @@ public:
 public:
 	static UINT WINAPI UpdateThread(PVOID parg);
 	static UINT WINAPI ApcThread(PVOID parg);
-	
+
 	//UpdateThread에서 처리하는 함수
 public:
 	VOID ON_CLIENT_JOIN_FUNC(JOB* job);
@@ -256,16 +256,17 @@ public:
 	CLockFreeQ<JOB*> _JobQ;
 	std::queue<JOB*> _STLQ;
 
+
 	HANDLE _IocpQ;
 	CTLS_LockFree_FreeList<JOB> _TlsJobFreeList;
 	CTLS_LockFree_FreeList<CPlayer> _TlsPlayerFreeList;
 	SECTOR _SectorArr[SECTOR_X_MAX][SECTOR_Y_MAX];
 
 	//SessionID, Player
-	std::unordered_map<ULONG64, CPlayer*> _PlayerMap;	
+	std::unordered_map<ULONG64, CPlayer*> _PlayerMap;
 	volatile INT64 ErrorCount;
 	CRITICAL_SECTION cs;
-	
+
 public:
 	volatile UINT64 UpdateCount;
 };
