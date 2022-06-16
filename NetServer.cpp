@@ -187,7 +187,7 @@ UINT WINAPI CNetServer::WorkerThread(LPVOID NetServer)
 		//{
 
 		//}
-
+	
 
 		//// Recv 0 - 클라에서 종료요청이 온 경우
 		/*else*/if (&pSession->RecvOverLapped.hEvent == &pOverLapped->hEvent && Transferred == 0)
@@ -201,6 +201,12 @@ UINT WINAPI CNetServer::WorkerThread(LPVOID NetServer)
 			InterlockedIncrement64((LONG64*)&pNetServer->_RecvCount);
 		}
 
+		// Send요청
+		else if (Transferred == SEND_REQUEST && &pSession->SendOverLapped == pOverLapped)
+		{
+			pNetServer->SendPost(pSession);
+		}
+
 		// Send 완료통지
 		else if (&pSession->SendOverLapped.hEvent == &pOverLapped->hEvent)
 		{
@@ -212,6 +218,7 @@ UINT WINAPI CNetServer::WorkerThread(LPVOID NetServer)
 		{
 			pNetServer->RecvComplete(pSession, Transferred);
 		}
+
 
 		// CancelIO로 종료된 경우
 		else if (pOverLapped->Internal == ERROR_OPERATION_ABORTED)
@@ -694,7 +701,11 @@ BOOL CNetServer::SendPacket(UINT64 SessionID, CMsg* msg)
 
 
 	if (pSession->SendQ.GetUseSize() != 0)
-		SendPost(pSession);
+	{
+		PostQueuedCompletionStatus(this->_IOCP, (DWORD)SEND_REQUEST, (ULONG_PTR)pSession, &pSession->SendOverLapped);
+		//SendPost(pSession);
+	}
+
 
 	EndUseSession(pSession);
 	return true;
