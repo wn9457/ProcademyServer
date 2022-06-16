@@ -18,13 +18,13 @@ class CLockFree_FreeList
 	struct NODE
 	{
 		T		Data;
-		SHORT	IsMine;
-		NODE* pNextNode;
+		//SHORT	IsMine;
+		NODE*	pNextNode;
 	};
 
 	struct TopNODE
 	{
-		NODE* pNode;
+		NODE*	pNode;
 		LONG64	UniqueCount;
 	};
 
@@ -41,6 +41,12 @@ public:
 		this->_UniqueCount = 0;
 
 		this->_IsPlacementNew = IsPlacementNew;
+		hHeap = HeapCreate(NULL, 0, NULL);
+
+		// LFH설정 (저단편화)
+		ULONG HeapInformationValue = 2;
+		if (HeapSetInformation(hHeap, HeapCompatibilityInformation,
+			&HeapInformationValue, sizeof(HeapInformationValue)));
 	}
 
 	virtual ~CLockFree_FreeList()
@@ -61,7 +67,7 @@ public:
 	bool Free(volatile T* Data)
 	{
 		// Free Node
-		NODE* fNode = (NODE*)Data;
+		volatile NODE* fNode = (NODE*)Data;
 
 		// 잘못된 주소가 전달된 경우
 		//if (fNode->IsMine != IDENT_VAL)
@@ -70,7 +76,7 @@ public:
 		// 소멸자 호출안됨. 소멸자는 애초에 명시적으로 호출할 수 없다.
 
 		// backup TopNode
-		TopNODE bTopNode;
+		volatile TopNODE bTopNode;
 
 		//_______________________________________________________________________________________
 		// 
@@ -116,7 +122,7 @@ public:
 
 			NODE* pNode = (NODE*)InterlockedCompareExchangePointer
 			(
-				(PVOID*)&this->_pTopNode->pNode,
+				(volatile PVOID*)&this->_pTopNode->pNode,
 				(PVOID)fNode,
 				(PVOID)bTopNode.pNode
 			);
@@ -128,29 +134,29 @@ public:
 		}
 		//_______________________________________________________________________________________
 
-		InterlockedDecrement64((LONG64*)&this->_UseSize);
+		InterlockedDecrement64((volatile LONG64*)&this->_UseSize);
 		return true;
 	}
 
 
 	T* Alloc()
 	{
-		LONG64  lUniqueCount;	// New UniqCount
-		UINT64	lUseSize;		// Local UseSize
-		UINT64	lAllocSize = this->_AllocSize;
+		volatile LONG64  lUniqueCount;	// New UniqCount
+		volatile UINT64	lUseSize;		// Local UseSize
+		volatile UINT64	lAllocSize = this->_AllocSize;
 
-		TopNODE bTopNode;		// backup TopNode
+		volatile TopNODE bTopNode;		// backup TopNode
 		NODE* rNode = nullptr;// return Node
 
 
 		// UseSize 증가
-		lUseSize = InterlockedIncrement64((LONG64*)&this->_UseSize);
+		lUseSize = InterlockedIncrement64((volatile LONG64*)&this->_UseSize);
 
 		// Node가 있는 경우 pop
 		if (lAllocSize >= lUseSize)
 		{
 			// UniqueCount증가
-			lUniqueCount = InterlockedIncrement64((LONG64*)&this->_UniqueCount);
+			lUniqueCount = InterlockedIncrement64((volatile LONG64*)&this->_UniqueCount);
 
 			while (true)
 			{
@@ -163,7 +169,7 @@ public:
 
 				if (false == InterlockedCompareExchange128
 				(
-					(LONG64*)this->_pTopNode,
+					(volatile LONG64*)this->_pTopNode,
 					(LONG64)lUniqueCount,
 					(LONG64)bTopNode.pNode->pNextNode,
 					(LONG64*)&bTopNode
@@ -181,14 +187,20 @@ public:
 			}
 		}
 
+		//return Node
 		else
 		{
-			//return Node
-			rNode = new NODE;
-			rNode->IsMine = IDENT_VAL;
+			// 1. NewNode
+			//rNode = new NODE;
+			//rNode->IsMine = IDENT_VAL;
+			//rNode->pNextNode = nullptr;
+
+			// 2. HeapCreate
+			rNode = (NODE*)HeapAlloc(this->hHeap, FALSE, sizeof(NODE));
+			new(&rNode->Data) T;
 			rNode->pNextNode = nullptr;
 
-			InterlockedIncrement64((LONG64*)&this->_AllocSize);
+			InterlockedIncrement64((volatile LONG64*)&this->_AllocSize);
 		}
 
 
@@ -197,7 +209,7 @@ public:
 		//	new (&rNode->Data) T;
 
 		// 데이터 반환 (노드반환)
-		return &(rNode->Data);
+		return (T*)(&(rNode->Data));
 	}
 
 
@@ -215,6 +227,8 @@ private:
 	volatile UINT64	_UseSize;			//실제 바깥에서 사용되고있는 노드(malloc노드)
 	volatile UINT64 _AllocSize;			//바깥으로 Alloc한 노드사이즈	
 	volatile UINT64 _UniqueCount;
+	HANDLE hHeap;
+	
 };
 
 #endif

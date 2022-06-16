@@ -16,10 +16,10 @@ CChattingServer::CChattingServer()
 
 
 	// 초기화 작업
-	_hJobEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+	this->_hJobEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 	_beginthreadex(NULL, 0, UpdateThread, this, FALSE, NULL);
-	ErrorCount = 0;
-	UpdateCount = 0;
+	this->_ErrorCount = 0;
+	this->_UpdateCount = 0;
 }
 
 CChattingServer::~CChattingServer()
@@ -139,7 +139,7 @@ VOID CChattingServer::OnMonitor(VOID)
 	wprintf(L"LockFree JobQ [%lld] ", this->_JobQ.GetUseSize());
 	wprintf(L"STL JobQ [%lld] ", this->_STLQ.size());
 
-	wprintf(L"\nUpdateTPS : [%lld]\n", UpdateCount / ((timeGetTime() - _StartTime) / 1000));
+	wprintf(L"\nUpdateTPS : [%lld]\n", _UpdateCount / ((timeGetTime() - _StartTime) / 1000));
 }
 
 UINT __stdcall CChattingServer::UpdateThread(PVOID parg)
@@ -187,12 +187,14 @@ UINT __stdcall CChattingServer::UpdateThread(PVOID parg)
 		{
 			printf("UpdateThread switch-case default Error : %d\n", job->Type);
 			pChattingServer->DisconnectSession(job->SessionID);
-			++pChattingServer->ErrorCount;
+			++pChattingServer->_ErrorCount;
 			break;
 		}
 		}
+
 		pChattingServer->_TlsJobFreeList.Free(job);
-		++pChattingServer->UpdateCount;
+		++pChattingServer->_UpdateCount;
+
 		//}
 		//ResetEvent(pChattingServer->_hJobEvent);
 	}
@@ -222,7 +224,7 @@ VOID CChattingServer::ON_CLIENT_LEAVE_FUNC(JOB* job)
 	{
 		//printf("player find fail [ON_CLIENT_LEAVE_FUNC] [SessionID : %lld]\n", job->SessionID);
 		//DisconnectSession(job->SessionID);
-		++ErrorCount;
+		++_ErrorCount;
 		return;
 	}
 
@@ -327,7 +329,7 @@ VOID CChattingServer::MSG_CS_CHAT_REQ_LOGIN_FUNC(JOB* job)
 		sizeof(INT64) + sizeof(WCHAR[20]) + sizeof(WCHAR[20]) + sizeof(char[64]))
 	{
 		DisconnectSession(job->SessionID);
-		++ErrorCount;
+		++_ErrorCount;
 		return;
 	}
 
@@ -385,7 +387,7 @@ VOID CChattingServer::MSG_CS_CHAT_REQ_SECTOR_MOVE_FUNC(JOB* job)
 	{
 		printf("find fail[MSG_CS_CHAT_REQ_SECTOR_MOVE_FUNC][SessionID : %lld]\n", job->SessionID);
 		DisconnectSession(job->SessionID);
-		++ErrorCount;
+		++_ErrorCount;
 		return;
 	}
 
@@ -394,7 +396,7 @@ VOID CChattingServer::MSG_CS_CHAT_REQ_SECTOR_MOVE_FUNC(JOB* job)
 	{
 		printf("[MSG_CS_CAHT_REQ_SECTOR_MOVE_FUNC]msg->GetDatasize() != [%d]\n", job->msg->GetDataSize());
 		DisconnectSession(job->SessionID);
-		++ErrorCount;
+		++_ErrorCount;
 		return;
 	}
 	// [Debug용] 찾은플레이어 회원정보가 불일치 하는 경우
@@ -405,7 +407,7 @@ VOID CChattingServer::MSG_CS_CHAT_REQ_SECTOR_MOVE_FUNC(JOB* job)
 	{
 		printf("=AccountNo Not equal [MSG_CS_CHAT_REQ_SECTOR_MOVE_FUNC][%lld != %lld]\n", AccountNo, pPlayer->AccountNo);
 		DisconnectSession(job->SessionID);
-		ErrorCount++;
+		_ErrorCount++;
 		return;
 	}
 
@@ -414,7 +416,7 @@ VOID CChattingServer::MSG_CS_CHAT_REQ_SECTOR_MOVE_FUNC(JOB* job)
 	{
 		printf("=MoveReq, Not PlayerGameStart[SessionID : %lld]", pPlayer->SessionID);
 		DisconnectSession(job->SessionID);
-		ErrorCount++;
+		_ErrorCount++;
 		return;
 	}
 
@@ -429,7 +431,7 @@ VOID CChattingServer::MSG_CS_CHAT_REQ_SECTOR_MOVE_FUNC(JOB* job)
 	{
 		printf("=MoveReq, Not Valid Arange : [X : %d][Y : %d]", SectorX, SectorY);
 		DisconnectSession(job->SessionID);
-		ErrorCount++;
+		_ErrorCount++;
 		return;
 	}
 
@@ -504,7 +506,7 @@ VOID CChattingServer::MSG_CS_CHAT_REQ_MESSAGE_FUNC(JOB* job)
 	{
 		printf("find fail[MSG_CS_CHAT_REQ_MESSAGE_FUNC][SessionID : %lld]\n", job->SessionID);
 		DisconnectSession(job->SessionID);
-		ErrorCount++;
+		_ErrorCount++;
 		return;
 	}
 
@@ -517,7 +519,7 @@ VOID CChattingServer::MSG_CS_CHAT_REQ_MESSAGE_FUNC(JOB* job)
 	{
 		printf("=AccountNo Not equal [MSG_CS_CHAT_REQ_SECTOR_MOVE_FUNC][%lld != %lld]\n", AccountNo, pPlayer->AccountNo);
 		DisconnectSession(job->SessionID);
-		ErrorCount++;
+		_ErrorCount++;
 		return;
 	}
 
@@ -526,7 +528,7 @@ VOID CChattingServer::MSG_CS_CHAT_REQ_MESSAGE_FUNC(JOB* job)
 	{
 		printf("=MoveReq, Not PlayerGameStart[SessionID : %lld]", pPlayer->SessionID);
 		DisconnectSession(job->SessionID);
-		ErrorCount++;
+		_ErrorCount++;
 		return;
 	}
 
@@ -688,13 +690,13 @@ VOID CChattingServer::APCProc(ULONG_PTR arg)
 	{
 		printf("UpdateThread switch-case default Error : %d\n", job->Type);
 		pChattingServer->DisconnectSession(job->SessionID);
-		++pChattingServer->ErrorCount;
+		++pChattingServer->_ErrorCount;
 		break;
 	}
 	}
 
 	pChattingServer->_TlsJobFreeList.Free(job);
-	++pChattingServer->UpdateCount;
+	++pChattingServer->_UpdateCount;
 
 	return void();
 }

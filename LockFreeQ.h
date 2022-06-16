@@ -90,14 +90,14 @@ public:
 
 	bool Enqueue(T Data)
 	{
-		TopNODE bTopTailNode;						// backup TailTopNode;
-		NODE* pbTailNextNode;				// backupTailNext Node;
-		NODE* pnNode = this->_pFreeList->Alloc();	// NewNode;
+		volatile TopNODE bTopTailNode;						// backup TailTopNode;
+		volatile NODE* pbTailNextNode;						// backupTailNext Node;
+		volatile NODE* pnNode = this->_pFreeList->Alloc();	// NewNode;
 
 		pnNode->Data = Data;
-		pnNode->pNextNode = nullptr;				// Enqueue는 pNext가 nullptr일 경우에만 
+		pnNode->pNextNode = nullptr;						// Enqueue는 pNext가 nullptr일 경우에만 
 
-		UINT64 lTailUniqueCount = InterlockedIncrement64((LONG64*)&this->_TailUniqueCount);
+		volatile UINT64 lTailUniqueCount = InterlockedIncrement64((LONG64*)&this->_TailUniqueCount);
 
 		// 노드가 추가되면 Enqueue성공간주. tail밀기 실패는 상관X
 		while (true)
@@ -115,11 +115,11 @@ public:
 			//_______________________________________________________________________________________
 			if (nullptr != pbTailNextNode)
 			{
-				lTailUniqueCount = InterlockedIncrement64((LONG64*)&this->_TailUniqueCount);
+				lTailUniqueCount = InterlockedIncrement64((volatile LONG64*)&this->_TailUniqueCount);
 
 				if (true == InterlockedCompareExchange128
 				(
-					(LONG64*)_ptail,
+					(volatile LONG64*)_ptail,
 					(LONG64)lTailUniqueCount,
 					(LONG64)bTopTailNode.pNode->pNextNode,
 					(LONG64*)&bTopTailNode
@@ -140,15 +140,15 @@ public:
 				if (nullptr == InterlockedCompareExchangePointer
 				(
 					(volatile PVOID*)&bTopTailNode.pNode->pNextNode,
-					pnNode,
-					pbTailNextNode
+					(PVOID)pnNode,
+					(PVOID)pbTailNextNode
 				))
 				{
 					// Enqueue 성공 
 					// tail 밀어준다 (성공여부 판단x)
 					if (true == InterlockedCompareExchange128
 					(
-						(LONG64*)_ptail,
+						(volatile LONG64*)_ptail,
 						(LONG64)lTailUniqueCount,
 						(LONG64)bTopTailNode.pNode->pNextNode,
 						(LONG64*)&bTopTailNode
@@ -162,17 +162,18 @@ public:
 			//_______________________________________________________________________________________
 		}
 
-		InterlockedIncrement64((LONG64*)&this->_UseSize);
+		InterlockedIncrement64((volatile LONG64*)&this->_UseSize);
 		return true;
 	}
 
 
 	bool Dequeue(T* pOutData)
 	{
-		int lUseSize = InterlockedDecrement64((LONG64*)&_UseSize);
+		volatile UINT64 lUseSize = InterlockedDecrement64((LONG64*)&_UseSize);
+
 		if (lUseSize < 0)
 		{
-			int lCurSize = InterlockedIncrement64((LONG64*)&_UseSize);
+			volatile UINT64 lCurSize = InterlockedIncrement64((LONG64*)&_UseSize);
 
 			if (lCurSize <= 0)
 			{
@@ -181,8 +182,8 @@ public:
 			}
 		}
 
-		LONG64 lHeadUniqueCount = InterlockedIncrement64((LONG64*)&this->_HeadUniqueCount);
-		LONG64 lTailUniqueCount;
+		volatile LONG64 lHeadUniqueCount = InterlockedIncrement64((volatile LONG64*)&this->_HeadUniqueCount);
+		volatile LONG64 lTailUniqueCount;
 
 		TopNODE	 bTopHeadNode;
 		TopNODE	 bTopTailNode;
@@ -205,11 +206,11 @@ public:
 
 			if (nullptr != pbTailNextNode)
 			{
-				lTailUniqueCount = InterlockedIncrement64((LONG64*)&this->_TailUniqueCount);
+				lTailUniqueCount = InterlockedIncrement64((volatile LONG64*)&this->_TailUniqueCount);
 
 				if (true == InterlockedCompareExchange128
 				(
-					(LONG64*)_ptail,
+					(volatile LONG64*)_ptail,
 					(LONG64)lTailUniqueCount,
 					(LONG64)bTopTailNode.pNode->pNextNode,
 					(LONG64*)&bTopTailNode

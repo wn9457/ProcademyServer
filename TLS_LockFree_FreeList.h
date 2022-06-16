@@ -9,10 +9,6 @@
 
 extern LONG64 g_Config;
 
-/*
-https://copynull.tistory.com/119
-*/
-
 template<typename T>
 class CTLS_LockFree_FreeList
 {
@@ -20,10 +16,9 @@ public:
 	struct ChunkNODE;
 	struct ChunkDATA
 	{
-		T Data;  // 1440byte
+		T Data;					 // 1440byte
 		ChunkNODE* pMyChunkNode; //8
-		LONG64 DataConfig;
-		int gbData;
+		//LONG64 DataConfig;
 	};
 
 
@@ -43,20 +38,17 @@ public:
 			for (int i = 0; i < CHUNK_SIZE; ++i)
 			{
 				this->DataArr[i].pMyChunkNode = this;
-				this->DataArr[i].DataConfig = this->Config;
+				//this->DataArr[i].DataConfig = this->Config;
 			}
 		}
 
 	public:
-		LONG64 gbdata[80];
-		volatile alignas(64) SHORT FreeCount;		// 64
-		volatile alignas(64) SHORT AllocCount;		// 64
-		ChunkDATA DataArr[CHUNK_SIZE];      // 1448 * CHUNK_SIZE
-		LONG64 Config;						// 64
-											// 192 + 1448 * CHUNK_SIZE
+		volatile alignas(16) SHORT FreeCount;		// 64
+		volatile alignas(16) SHORT AllocCount;		// 64
+		ChunkDATA DataArr[CHUNK_SIZE];     
+		LONG64 Config;						
+											
 	};
-	//실제:32128   목표:32768
-	//
 
 
 public:
@@ -160,14 +152,14 @@ public:
 
 	}
 
-	void Free(T* Data)
+	void Free(volatile T* Data)
 	{
 		// 내 메모리풀에서 나간게 맞는가?
-		if (((ChunkDATA*)Data)->DataConfig != (((ChunkNODE*)((ChunkDATA*)Data)->pMyChunkNode)->Config))
-		{
-			int* Crash = 0;
-			*Crash = 0;
-		}
+		//if (((ChunkDATA*)Data)->DataConfig != (((ChunkNODE*)((ChunkDATA*)Data)->pMyChunkNode)->Config))
+		//{
+		//	int* Crash = 0;
+		//	*Crash = 0;
+		//}
 
 		//청크 Free카운트를 증가시키고, 모두 반납된경우 프리리스트로 반납한다.
 		if (0 == InterlockedDecrement16(&(((ChunkNODE*)((ChunkDATA*)Data)->pMyChunkNode)->FreeCount)))

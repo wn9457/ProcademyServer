@@ -129,7 +129,6 @@ enum CHATTING_SERVER_PROTOCOL
 
 class CChattingServer : public CNetServer
 {
-
 	struct JOB
 	{
 		explicit JOB()
@@ -161,7 +160,7 @@ class CChattingServer : public CNetServer
 	public:
 
 		//new-delete사용. 생성될때마다 생성자호출.
-		explicit CPlayer() { Initailize(); }
+		explicit CPlayer() {  }
 		void Initailize()
 		{
 			GameStart = false;
@@ -264,11 +263,11 @@ public:
 
 	//SessionID, Player
 	std::unordered_map<ULONG64, CPlayer*> _PlayerMap;
-	volatile INT64 ErrorCount;
-	CRITICAL_SECTION cs;
+	volatile INT64 _ErrorCount;
+	CRITICAL_SECTION _cs;
 
 public:
-	volatile UINT64 UpdateCount;
+	volatile UINT64 _UpdateCount;
 };
 
 #endif

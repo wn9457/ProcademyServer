@@ -69,15 +69,14 @@ private:
 			SendMsgCount = 0;
 
 			DisconFlag = false;
-			DisconOK = 0;
-			WhatDiscon = 0;
 		}
+
 	public:
 		//BOOL Connect; // IndexArray
 
 	public:
 		volatile UINT64 SessionID;
-		RELEASE_COMMIT  ReleaseCommit;
+		volatile RELEASE_COMMIT  ReleaseCommit;
 
 		WSAOVERLAPPED SendOverLapped;
 		WSAOVERLAPPED RecvOverLapped;
@@ -95,10 +94,6 @@ private:
 
 	public:
 		volatile BOOL	DisconFlag;		//끊길애면 IO걸지않음
-
-		//Debug용
-		INT DisconOK = 0;
-		INT WhatDiscon = 0;
 	};
 
 
