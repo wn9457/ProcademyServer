@@ -3,7 +3,8 @@
 #ifndef ____TLS_LOCKFREE_FREELIST_H____
 #define ____TLS_LOCKFREE_FREELIST_H____
 
-#include "LockFreeStack.h"
+#include "LockFree_FreeList.h"
+#include "SListFreeList.h"
 
 #define CHUNK_SIZE 500	//50000개로하면 서버 버벅댐 
 
@@ -56,7 +57,9 @@ public:
 	{
 		// ChunkNode의 생성 및 생성자 여부결정
 		// Config와 this(찾아갈주소)는 한번 박아놓으면 바뀔일 없으므로 false
+
 		this->_ChunkFreeList = new CLockFree_FreeList<ChunkNODE>(false);
+		//this->_ChunkFreeList = new CSListFreeList<ChunkNODE>;
 
 		// <T>자료형 자체에 대한 생성자 호출 여부
 		this->_IsPlacementNew = IsPlacementNew;
@@ -199,6 +202,7 @@ public:
 
 public:
 	CLockFree_FreeList<ChunkNODE>* _ChunkFreeList;
+	//CSListFreeList<ChunkNODE>* _ChunkFreeList;
 
 private:
 	int TlsIndex;

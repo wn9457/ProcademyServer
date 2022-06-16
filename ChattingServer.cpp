@@ -6,7 +6,7 @@ CChattingServer::CChattingServer()
 	this->_IocpQ = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
 
 	// 2. LockFree-Q
-	// 헤더에 존재
+	//
 
 	// 3. STL-Q
 	//InitializeCriticalSection(&cs);
