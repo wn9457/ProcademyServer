@@ -20,10 +20,9 @@
 
 #define LOGIN_PACKET_DATA	0x7fffffffffffffff
 #define CMSG_MAX_SENDSIZE	100
+#define SEND_REQUEST		-1
 
 class CMsg;
-
-
 class CMyNetServer;
 class CNetServer
 {
@@ -58,7 +57,9 @@ private:
 			RecvOverLapped = { 0, };
 			SendOverLapped = { 0, };
 			SendFlag = false;
-
+			
+			
+			
 			IOSocket = Socket;
 			SocketVal = Socket;
 			addr = sockaddr_in;

@@ -6,7 +6,7 @@
 #include "LockFree_FreeList.h"
 #include "SListFreeList.h"
 
-#define CHUNK_SIZE 500	//50000개로하면 서버 버벅댐 
+#define CHUNK_SIZE 500	
 
 extern LONG64 g_Config;
 
@@ -72,16 +72,14 @@ public:
 			*a = 0;
 		}
 
-		//다른쪽에서 메모리접근느낌으로 살펴볼것. 더 줄일거 없는지
-		//메모리접근을 높이기위한 할당 - 해제
-		//ChunkNODE* pChunkNode[16];
-		//int size = sizeof(ChunkNODE);
+		// 저단편화를 막아보자
+		ChunkNODE* pChunkNode[16];
 
-		//for (int i = 0; i < _countof(pChunkNode); ++i)
-		//	pChunkNode[i] = this->_ChunkFreeList->Alloc();
+		for (int i = 0; i < _countof(pChunkNode); ++i)
+			pChunkNode[i] = this->_ChunkFreeList->Alloc();
 
-		//for (int i = 0; i < _countof(pChunkNode); ++i)
-		//	this->_ChunkFreeList->Free(pChunkNode[i]);
+		for (int i = 0; i < _countof(pChunkNode); ++i)
+			this->_ChunkFreeList->Free(pChunkNode[i]);
 	}
 
 	virtual ~CTLS_LockFree_FreeList()

@@ -284,13 +284,13 @@ public:
 	bool push(T Data)
 	{
 		// NewNode 
-		NODE* nNode = _pFreeList->Alloc();
+		volatile NODE* nNode = _pFreeList->Alloc();
 
 		// Data backup
 		nNode->Data = Data;
 
 		// backup TopNode 
-		TopNODE bTopNode;
+		volatile TopNODE bTopNode;
 
 		//_______________________________________________________________________________________
 		// 
@@ -361,10 +361,10 @@ public:
 
 	bool pop(T* pOutData)
 	{
-		int lUseSize = InterlockedDecrement64((LONG64*)&_UseSize);
+		volatile LONG64 lUseSize = InterlockedDecrement64((LONG64*)&_UseSize);
 		if (lUseSize < 0)
 		{
-			int lCurSize = InterlockedIncrement64((LONG64*)&_UseSize);
+			volatile LONG64 lCurSize = InterlockedIncrement64((LONG64*)&_UseSize);
 
 			if (lCurSize <= 0)
 			{

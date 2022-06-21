@@ -43,10 +43,10 @@ public:
 		this->_IsPlacementNew = IsPlacementNew;
 		hHeap = HeapCreate(NULL, 0, NULL);
 
-		// LFH설정 (저단편화)
-		ULONG HeapInformationValue = 2;
-		if (HeapSetInformation(hHeap, HeapCompatibilityInformation,
-			&HeapInformationValue, sizeof(HeapInformationValue)));
+		// 저단편화 설정
+		//ULONG HeapInformationValue = 2;
+		//if (HeapSetInformation(hHeap, HeapCompatibilityInformation,
+		//	&HeapInformationValue, sizeof(HeapInformationValue)));
 	}
 
 	virtual ~CLockFree_FreeList()
