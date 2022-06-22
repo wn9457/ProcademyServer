@@ -190,7 +190,20 @@ UINT WINAPI CNetServer::WorkerThread(LPVOID NetServer)
 	
 
 		//// Recv 0 - 클라에서 종료요청이 온 경우
-		/*else*/if (&pSession->RecvOverLapped.hEvent == &pOverLapped->hEvent && Transferred == 0)
+		/*else*/
+		if (&pSession->RecvOverLapped.hEvent == &pOverLapped->hEvent && Transferred == 0)
+		{
+			pSession->DisconFlag = true;
+
+			// Recv 종료 - IOCount감소
+			if (0 == InterlockedDecrement64(&pSession->ReleaseCommit.IOCount))
+				pNetServer->ReleaseSession(pSession);
+
+			InterlockedIncrement64((LONG64*)&pNetServer->_RecvCount);
+		}
+
+		// CancelIO로 종료된 경우
+		else if (pOverLapped->Internal == ERROR_OPERATION_ABORTED)
 		{
 			pSession->DisconFlag = true;
 
@@ -205,6 +218,7 @@ UINT WINAPI CNetServer::WorkerThread(LPVOID NetServer)
 		else if (Transferred == SEND_REQUEST && &pSession->SendOverLapped == pOverLapped)
 		{
 			pNetServer->SendPost(pSession);
+			pNetServer->EndUseSession(pSession);
 		}
 
 		// Send 완료통지
@@ -217,19 +231,6 @@ UINT WINAPI CNetServer::WorkerThread(LPVOID NetServer)
 		else if (&pSession->RecvOverLapped.hEvent == &pOverLapped->hEvent)
 		{
 			pNetServer->RecvComplete(pSession, Transferred);
-		}
-
-
-		// CancelIO로 종료된 경우
-		else if (pOverLapped->Internal == ERROR_OPERATION_ABORTED)
-		{
-			pSession->DisconFlag = true;
-
-			// Recv 종료 - IOCount감소
-			if (0 == InterlockedDecrement64(&pSession->ReleaseCommit.IOCount))
-				pNetServer->ReleaseSession(pSession);
-
-			InterlockedIncrement64((LONG64*)&pNetServer->_RecvCount);
 		}
 
 		// 에러상황
@@ -707,7 +708,7 @@ BOOL CNetServer::SendPacket(UINT64 SessionID, CMsg* msg)
 	}
 
 
-	EndUseSession(pSession);
+	//EndUseSession(pSession);
 	return true;
 }
 
@@ -749,9 +750,19 @@ VOID CNetServer::ReleaseSession(_SESSION* pSession)
 	if (0 == InterlockedCompareExchange128((LONG64*)&(pSession->ReleaseCommit), Exc.ReleaseFlag, Exc.IOCount, (LONG64*)&Comp))
 		return;
 
+	//____________________________________________________________________________________
+	//
+	// OnClientLeave가  _InvalidIndexStack.push(Index);아래 에있다면..
+	// Index해제(블락) -> Accept에서 할당 -> (스레드재수행)재할당된 pSession으로 Leave.
+	// 이 경우 전혀 엉뚱한 ID가 채팅서버로 전달된다.
+	//____________________________________________________________________________________
+	OnClientLeave(pSession->SessionID);
+
 
 	// IO는 모두 0이다. 재할당되어도 문제없음
 	closesocket(pSession->IOSocket);
+
+
 
 	//____________________________________________________________________________________
 	// 
@@ -778,18 +789,10 @@ VOID CNetServer::ReleaseSession(_SESSION* pSession)
 		}
 	}
 
-	//____________________________________________________________________________________
-	//
-	// OnClientLeave가  _InvalidIndexStack.push(Index);아래 에있다면..
-	// Index해제(블락) -> Accept에서 할당 -> (스레드재수행)재할당된 pSession으로 Leave.
-	// 이 경우 전혀 엉뚱한 ID가 채팅서버로 전달된다.
-	//____________________________________________________________________________________
-	OnClientLeave(pSession->SessionID);
-
 	InterlockedDecrement(&this->_ConnectClientCount);
 	InterlockedDecrement(&this->_AcceptClientCount);
 
-	_InvalidIndexStack.push((int)(pSession->SessionID >> 47));
+	_InvalidIndexStack.push((pSession->SessionID >> 47));
 }
 
 
@@ -873,6 +876,8 @@ UINT64 CNetServer::RecvComplete(_SESSION* pSession, INT Transferred)
 	//________________________________________________________________________________________
 	if (this->_ServerType == SERVER_TYPE::NET_SERVER)
 	{
+		CMsg* msg = CMsg::Alloc();
+
 		// 최소한 헤더만큼 왔는지 확인
 		while (pSession->RecvQ.GetUseSize() >= HEADER_SIZE)
 		{
@@ -892,8 +897,7 @@ UINT64 CNetServer::RecvComplete(_SESSION* pSession, INT Transferred)
 			if (header.Len > pSession->RecvQ.GetUseSize() - HEADER_SIZE)
 				break;
 
-			CMsg* msg = CMsg::Alloc();
-
+			msg->Clear();
 			pSession->RecvQ.Deque(msg->GetMsgBufferPtr(), header.Len + HEADER_SIZE);
 			msg->MoveWritePos(header.Len);
 

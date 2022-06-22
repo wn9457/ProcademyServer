@@ -39,7 +39,7 @@ private:
 	struct _SESSION
 	{
 		//CAS를 위해 구조체
-		struct alignas(16) RELEASE_COMMIT
+		volatile struct alignas(16) RELEASE_COMMIT
 		{
 			LONG64 IOCount = 0;
 			LONG64 ReleaseFlag = 0;  //Relase()를 해도되는지 판단 
@@ -83,8 +83,8 @@ private:
 		WSAOVERLAPPED RecvOverLapped;
 		volatile CHAR SendFlag;
 
-		SOCKET IOSocket;				// IO를 걸 소켓
-		SOCKET SocketVal;				// 소켓값 별도 저장
+		volatile SOCKET IOSocket;				// IO를 걸 소켓
+		volatile SOCKET SocketVal;				// 소켓값 별도 저장
 		SOCKADDR_IN addr;
 
 		CLockFreeQ<CMsg*> SendQ;
@@ -234,7 +234,7 @@ public:
 	// Accept 1200 ~ 2000
 	// Recv 10000 ~ 11000
 	// Send 83000 ~ 90000
-	// Action Delay 평균 200나와야함
+	// Action Delay 평균 200...
 
 
 	// 큐 비교중점
